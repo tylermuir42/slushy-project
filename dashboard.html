@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slushie Ops Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+    h1, h2, p {
+      margin-top: 0;
+    }
+    .meta {
+      color: #4b5563;
+      margin-bottom: 20px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    .status-down {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status-atrisk {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .status-healthy {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .metric {
+      margin: 6px 0;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      background: #eef2ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Slushie Ops Dashboard</h1>
+  <p class="meta">
+    Learner-lab proof of concept using sampled JSON telemetry from machines 1-3 on 2024-05-29.
+  </p>
+
+  <div class="cards" id="cards"></div>
+
+  <h2>Summary Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Machine</th>
+        <th>Status</th>
+        <th>Off Minutes</th>
+        <th>Fill %</th>
+        <th>Avg Temp</th>
+        <th>Estimated Cups</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    const data = [
+      {
+        machine_id: "1",
+        status: "AtRisk",
+        off_minutes: 95,
+        percentage_full: 98.05,
+        temp_avg: 30.34,
+        cups_total_est: 8381
+      },
+      {
+        machine_id: "2",
+        status: "Down",
+        off_minutes: 1145,
+        percentage_full: 11.27,
+        temp_avg: 30.99,
+        cups_total_est: 1452
+      },
+      {
+        machine_id: "3",
+        status: "AtRisk",
+        off_minutes: 65,
+        percentage_full: 33.95,
+        temp_avg: 30.15,
+        cups_total_est: 3092
+      }
+    ];
+
+    function statusClass(status) {
+      if (status === "Down") return "status-down";
+      if (status === "AtRisk") return "status-atrisk";
+      return "status-healthy";
+    }
+
+    const cards = document.getElementById("cards");
+    const rows = document.getElementById("rows");
+
+    data.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="status ${statusClass(item.status)}">${item.status}</div>
+        <h2>Machine ${item.machine_id}</h2>
+        <div class="metric"><strong>Off Minutes:</strong> ${item.off_minutes}</div>
+        <div class="metric"><strong>Fill Level:</strong> ${item.percentage_full}%</div>
+        <div class="metric"><strong>Avg Temp:</strong> ${item.temp_avg}</div>
+        <div class="metric"><strong>Estimated Cups:</strong> ${item.cups_total_est}</div>
+      `;
+      cards.appendChild(card);
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${item.machine_id}</td>
+        <td>${item.status}</td>
+        <td>${item.off_minutes}</td>
+        <td>${item.percentage_full}%</td>
+        <td>${item.temp_avg}</td>
+        <td>${item.cups_total_est}</td>
+      `;
+      rows.appendChild(row);
+    });
+  </script>
+</body>
+</html>
+

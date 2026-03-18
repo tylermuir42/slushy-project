@@ -1,0 +1,74 @@
+[
+  {
+    "machine_id": "1",
+    "window_start": "2024-05-29T00:00:00",
+    "window_end": "2024-05-29T23:55:00",
+    "status": "AtRisk",
+    "off_minutes": 95,
+    "percentage_full": 98.05,
+    "temp_avg": 30.34,
+    "cups_total_est": 8381,
+    "top_hours": [
+      {
+        "hour": "2024-05-29 12:00",
+        "cups_est": 1334
+      },
+      {
+        "hour": "2024-05-29 11:00",
+        "cups_est": 1269
+      },
+      {
+        "hour": "2024-05-29 06:00",
+        "cups_est": 829
+      }
+    ]
+  },
+  {
+    "machine_id": "2",
+    "window_start": "2024-05-29T00:00:00",
+    "window_end": "2024-05-29T23:55:00",
+    "status": "Down",
+    "off_minutes": 1145,
+    "percentage_full": 11.27,
+    "temp_avg": 30.99,
+    "cups_total_est": 1452,
+    "top_hours": [
+      {
+        "hour": "2024-05-29 05:00",
+        "cups_est": 180
+      },
+      {
+        "hour": "2024-05-29 11:00",
+        "cups_est": 180
+      },
+      {
+        "hour": "2024-05-29 06:00",
+        "cups_est": 175
+      }
+    ]
+  },
+  {
+    "machine_id": "3",
+    "window_start": "2024-05-29T00:00:00",
+    "window_end": "2024-05-29T23:55:00",
+    "status": "AtRisk",
+    "off_minutes": 65,
+    "percentage_full": 33.95,
+    "temp_avg": 30.15,
+    "cups_total_est": 3092,
+    "top_hours": [
+      {
+        "hour": "2024-05-29 05:00",
+        "cups_est": 346
+      },
+      {
+        "hour": "2024-05-29 10:00",
+        "cups_est": 330
+      },
+      {
+        "hour": "2024-05-29 01:00",
+        "cups_est": 321
+      }
+    ]
+  }
+]
