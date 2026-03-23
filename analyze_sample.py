@@ -266,64 +266,35 @@ def main() -> None:
         summary_export.append(
             {
                 "machine_id": s.machine_id,
-                "window_start": s.start.isoformat(),
-                "window_end": s.end.isoformat(),
                 "status": s.status,
                 "off_minutes": s.off_minutes,
                 "percentage_full": round(s.current_fill_pct, 2) if s.current_fill_pct is not None else None,
                 "temp_avg": round(s.temp_on_avg, 2) if s.temp_on_avg is not None else None,
                 "cups_total_est": s.cups_total,
-                "top_hours": [{"hour": hour, "cups_est": value} for hour, value in s.top_hours],
             }
         )
 
     with open("sample_machine_summary.json", "w", encoding="utf-8") as f:
         json.dump(summary_export, f, indent=2)
 
-    # Print a small table (markdown-friendly).
-    print("| machine_id | status | window | readings | off_minutes | current_fill | temp_on_avg | cups_total | cups_per_hour |")
-    print("|---:|:---|:---|---:|---:|---:|---:|---:|---:|")
+    # Print a small table (markdown-friendly) - Person 2 output fields only.
+    print("| machine_id | status | off_minutes | percentage_full | temp_avg | cups_total_est |")
+    print("|---:|:---|---:|---:|---:|---:|")
     for s in summaries:
-        window = f"{s.start.strftime('%Y-%m-%d %H:%M')}→{s.end.strftime('%H:%M')}"
         print(
             "| "
             + " | ".join(
                 [
                     s.machine_id,
                     s.status,
-                    window,
-                    str(s.readings),
                     str(s.off_minutes),
                     f"{s.current_fill_pct:.2f}" if s.current_fill_pct is not None else "NA",
                     f"{s.temp_on_avg:.2f}" if s.temp_on_avg is not None else "NA",
                     str(s.cups_total),
-                    f"{s.cups_per_hour:.1f}" if s.cups_per_hour is not None else "NA",
                 ]
             )
             + " |"
         )
-
-    print()
-    print("| machine_id | slushies_filled_value_min | slushies_filled_value_max |")
-    print("|---:|---:|---:|")
-    for s in summaries:
-        print(
-            "| "
-            + " | ".join(
-                [
-                    s.machine_id,
-                    str(s.cups_value_min) if s.cups_value_min is not None else "NA",
-                    str(s.cups_value_max) if s.cups_value_max is not None else "NA",
-                ]
-            )
-            + " |"
-        )
-
-    print()
-    print("Top hours (by estimated cups sold):")
-    for s in summaries:
-        top = ", ".join([f"{h} ({v})" for h, v in s.top_hours]) if s.top_hours else "NA"
-        print(f"- machine {s.machine_id}: {top}")
 
 
 if __name__ == "__main__":
