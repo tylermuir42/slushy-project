@@ -84,6 +84,13 @@ variable "lambda_execution_role_arn" {
   type        = string
   description = "Existing Lambda execution role ARN (required when create_lambda_role is false)."
   default     = ""
+  validation {
+    condition = (
+      var.create_lambda_role ||
+      can(regex("^arn:(aws[a-zA-Z-]*)?:iam::[0-9]{12}:role/.+", var.lambda_execution_role_arn))
+    )
+    error_message = "Set lambda_execution_role_arn to a valid IAM role ARN when create_lambda_role is false."
+  }
 }
 
 locals {
