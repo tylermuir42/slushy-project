@@ -3,7 +3,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 5.0"
     }
     archive = {
       source  = "hashicorp/archive"
@@ -30,12 +30,12 @@ variable "project_name" {
 
 variable "s3_bucket_name" {
   type        = string
-  description = "Globally-unique S3 bucket name for raw telemetry JSON."
+  description = "S3 bucket name for raw telemetry JSON (existing or new)."
 }
 
 variable "dynamodb_table_name" {
   type        = string
-  description = "DynamoDB table name for machine summaries."
+  description = "DynamoDB table name for machine summaries (existing or new)."
 }
 
 variable "lambda_metric_name" {
@@ -62,11 +62,42 @@ variable "allowed_dates" {
   default     = "2024-05-29"
 }
 
+variable "create_s3_bucket" {
+  type        = bool
+  description = "Set true to create a new S3 bucket; false to reuse existing bucket."
+  default     = false
+}
+
+variable "create_dynamodb_table" {
+  type        = bool
+  description = "Set true to create a new DynamoDB table; false to reuse existing table."
+  default     = false
+}
+
+variable "create_lambda_role" {
+  type        = bool
+  description = "Set true only if your account can create IAM roles."
+  default     = false
+}
+
+variable "lambda_execution_role_arn" {
+  type        = string
+  description = "Existing Lambda execution role ARN (required when create_lambda_role is false)."
+  default     = ""
+}
+
 locals {
-  # A single IAM role for both lambdas keeps the lab setup simple.
   common_tags = {
     Project = var.project_name
   }
+
+  bucket_id = var.create_s3_bucket ? aws_s3_bucket.raw[0].id : data.aws_s3_bucket.raw_existing[0].id
+  bucket_arn = var.create_s3_bucket ? aws_s3_bucket.raw[0].arn : data.aws_s3_bucket.raw_existing[0].arn
+
+  dynamodb_table_name_final = var.create_dynamodb_table ? aws_dynamodb_table.machine_summaries[0].name : data.aws_dynamodb_table.machine_summaries_existing[0].name
+  dynamodb_table_arn_final = var.create_dynamodb_table ? aws_dynamodb_table.machine_summaries[0].arn : data.aws_dynamodb_table.machine_summaries_existing[0].arn
+
+  lambda_role_arn_final = var.create_lambda_role ? aws_iam_role.lambda_role[0].arn : var.lambda_execution_role_arn
 }
 
 data "archive_file" "metric_lambda_zip" {
@@ -82,14 +113,21 @@ data "archive_file" "read_lambda_zip" {
 }
 
 resource "aws_s3_bucket" "raw" {
+  count         = var.create_s3_bucket ? 1 : 0
   bucket        = var.s3_bucket_name
   force_destroy = true
 
   tags = local.common_tags
 }
 
+data "aws_s3_bucket" "raw_existing" {
+  count  = var.create_s3_bucket ? 0 : 1
+  bucket = var.s3_bucket_name
+}
+
 resource "aws_s3_bucket_public_access_block" "raw" {
-  bucket                  = aws_s3_bucket.raw.id
+  count                   = var.create_s3_bucket ? 1 : 0
+  bucket                  = aws_s3_bucket.raw[0].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -97,6 +135,7 @@ resource "aws_s3_bucket_public_access_block" "raw" {
 }
 
 resource "aws_dynamodb_table" "machine_summaries" {
+  count        = var.create_dynamodb_table ? 1 : 0
   name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "machine_id"
@@ -115,7 +154,13 @@ resource "aws_dynamodb_table" "machine_summaries" {
   tags = local.common_tags
 }
 
+data "aws_dynamodb_table" "machine_summaries_existing" {
+  count = var.create_dynamodb_table ? 0 : 1
+  name  = var.dynamodb_table_name
+}
+
 resource "aws_iam_role" "lambda_role" {
+  count = var.create_lambda_role ? 1 : 0
   name = "${var.project_name}-lambda-role"
 
   assume_role_policy = jsonencode({
@@ -135,8 +180,9 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_role_policy" "lambda_policy" {
+  count = var.create_lambda_role ? 1 : 0
   name = "${var.project_name}-lambda-policy"
-  role = aws_iam_role.lambda_role.id
+  role = aws_iam_role.lambda_role[0].id
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -156,7 +202,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "s3:GetObject"
         ],
         Resource = [
-          "${aws_s3_bucket.raw.arn}/*"
+          "${local.bucket_arn}/*"
         ]
       },
       {
@@ -165,14 +211,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "dynamodb:PutItem",
           "dynamodb:BatchWriteItem"
         ],
-        Resource = aws_dynamodb_table.machine_summaries.arn
+        Resource = local.dynamodb_table_arn_final
       },
       {
         Effect = "Allow",
         Action = [
           "dynamodb:Query"
         ],
-        Resource = aws_dynamodb_table.machine_summaries.arn
+        Resource = local.dynamodb_table_arn_final
       }
     ]
   })
@@ -180,7 +226,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 resource "aws_lambda_function" "metric_lambda" {
   function_name = var.lambda_metric_name
-  role          = aws_iam_role.lambda_role.arn
+  role          = local.lambda_role_arn_final
   runtime       = "python3.11"
   handler       = "lambda_function.lambda_handler"
 
@@ -191,7 +237,7 @@ resource "aws_lambda_function" "metric_lambda" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.machine_summaries.name
+      DYNAMODB_TABLE = local.dynamodb_table_name_final
       MACHINE_IDS    = var.mids
       ALLOWED_DATES  = var.allowed_dates
     }
@@ -202,7 +248,7 @@ resource "aws_lambda_function" "metric_lambda" {
 
 resource "aws_lambda_function" "read_lambda" {
   function_name = var.lambda_read_name
-  role          = aws_iam_role.lambda_role.arn
+  role          = local.lambda_role_arn_final
   runtime       = "python3.11"
   handler       = "read_summaries_lambda.lambda_handler"
 
@@ -213,7 +259,7 @@ resource "aws_lambda_function" "read_lambda" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE = aws_dynamodb_table.machine_summaries.name
+      DYNAMODB_TABLE = local.dynamodb_table_name_final
       MACHINE_IDS    = var.mids
     }
   }
@@ -226,11 +272,11 @@ resource "aws_lambda_permission" "allow_s3_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.metric_lambda.function_name
   principal     = "s3.amazonaws.com"
-  source_arn    = aws_s3_bucket.raw.arn
+  source_arn    = local.bucket_arn
 }
 
 resource "aws_s3_bucket_notification" "invoke_metric_lambda" {
-  bucket = aws_s3_bucket.raw.id
+  bucket = local.bucket_id
 
   lambda_function {
     lambda_function_arn = aws_lambda_function.metric_lambda.arn
@@ -283,10 +329,10 @@ output "read_summaries_url" {
 }
 
 output "s3_bucket_name" {
-  value = aws_s3_bucket.raw.bucket
+  value = local.bucket_id
 }
 
 output "dynamodb_table_name" {
-  value = aws_dynamodb_table.machine_summaries.name
+  value = local.dynamodb_table_name_final
 }
 
